@@ -1,0 +1,9 @@
+.selenium-profile/
+.venv/
+__pycache__/
+*.py[cod]
+
+profiles.csv
+urls.txt
+linkedin_connections.csv
+linkedin_connections.xlsx
