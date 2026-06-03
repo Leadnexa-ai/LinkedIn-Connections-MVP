@@ -78,4 +78,58 @@ python3 linkedin_connections_mvp.py --profile-dir .selenium-profile
 - `original_connections_number`
 - `recent_connections_number`
 
+## CSV Database Workflow
+
+试验阶段可以用本地 CSV 当 database。先复制模板：
+
+```bash
+cp profiles_database.example.csv profiles_database.csv
+cp folder_profiles.example.csv folder_profiles.csv
+```
+
+`profiles_database.csv` 是完整资料库：
+
+```csv
+profile_name,name,linkedin_url,last_connections_number,last_checked_at
+USUT13A,Eleanor King,https://www.linkedin.com/in/example-profile-1,,
+```
+
+`folder_profiles.csv` 表示这次要跑的 Multilogin folder profile name 列表：
+
+```csv
+profile_name
+USUT13A
+USNJ06G
+```
+
+生成本次抓取用的 `profiles.csv`：
+
+```bash
+python3 generate_profiles_from_database.py --database profiles_database.csv --folder folder_profiles.csv --out profiles.csv
+```
+
+运行 LinkedIn 抓取：
+
+```bash
+python3 linkedin_connections_mvp.py --input profiles.csv --out linkedin_connections.csv --xlsx linkedin_connections.xlsx
+```
+
+抓取完成后，把本次结果回写到 database：
+
+```bash
+python3 update_database_from_results.py --database profiles_database.csv --results linkedin_connections.csv
+```
+
+下一次再生成 `profiles.csv` 时，`last_connections_number` 会自动变成 `original_connections_number`。
+
+## Multilogin
+
+当前仓库先预留了 `.env.example`，真实 API token 不要提交到 Git。
+
+```bash
+cp .env.example .env
+```
+
+之后接 Multilogin API 时，脚本会用 folder id 生成 `folder_profiles.csv`，再沿用上面的 CSV database workflow。
+
 请只处理你有权限查看的页面，并遵守 LinkedIn 的使用条款和访问频率限制。

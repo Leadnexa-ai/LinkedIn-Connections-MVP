@@ -5,5 +5,8 @@ __pycache__/
 
 profiles.csv
 urls.txt
+profiles_database.csv
+folder_profiles.csv
 linkedin_connections.csv
 linkedin_connections.xlsx
+.env
