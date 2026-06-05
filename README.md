@@ -44,11 +44,15 @@ source .venv/bin/activate
 - `profiles.csv`: generated runtime input for Selenium
 - `linkedin_connections.csv`: latest capture result in CSV
 - `linkedin_connections.xlsx`: latest capture result in Excel
+- `generate_profiles_from_google_sheet.py`: build `profiles.csv` from Google Sheet
+- `update_google_sheet_from_results.py`: write capture results back to Google Sheet
 
 - `google_service_account.json`：本地 Google service account 凭证
 - `profiles.csv`：运行时生成的 Selenium 输入文件
 - `linkedin_connections.csv`：最新抓取结果 CSV
 - `linkedin_connections.xlsx`：最新抓取结果 Excel
+- `generate_profiles_from_google_sheet.py`：从 Google Sheet 生成 `profiles.csv`
+- `update_google_sheet_from_results.py`：将抓取结果回写到 Google Sheet
 
 ## Google Sheet Structure / Google Sheet 表结构
 
@@ -99,7 +103,7 @@ Field meaning:
 ```bash
 .venv/bin/python3 generate_profiles_from_google_sheet.py \
   --credentials google_service_account.json \
-  --sheet "https://docs.google.com/spreadsheets/d/1a7qhjnSBmUkO0tcOvw_6UF2NPslzlQwG2KAxx3YA7BA/edit?gid=0#gid=0" \
+  --sheet "YOUR_GOOGLE_SHEET_URL" \
   --worksheet "Sheet1" \
   --out profiles.csv
 ```
@@ -150,7 +154,7 @@ During this step:
 ```bash
 .venv/bin/python3 update_google_sheet_from_results.py \
   --credentials google_service_account.json \
-  --sheet "https://docs.google.com/spreadsheets/d/1a7qhjnSBmUkO0tcOvw_6UF2NPslzlQwG2KAxx3YA7BA/edit?gid=0#gid=0" \
+  --sheet "YOUR_GOOGLE_SHEET_URL" \
   --worksheet "Sheet1" \
   --results linkedin_connections.csv
 ```

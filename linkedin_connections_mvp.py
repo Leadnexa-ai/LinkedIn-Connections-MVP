@@ -83,7 +83,6 @@ def parse_args() -> argparse.Namespace:
         default="profiles.csv",
         help="CSV input with profile_name,url,original_connections_number columns.",
     )
-    parser.add_argument("--urls", default="urls.txt", help="Legacy URL list file, one URL per line.")
     parser.add_argument("--out", default="linkedin_connections.csv", help="CSV output path.")
     parser.add_argument("--xlsx", default="", help="Optional XLSX export path.")
     parser.add_argument(
@@ -136,26 +135,11 @@ def load_profiles_from_csv(path: Path) -> list[ProfileInput]:
                 )
             )
         return profiles
-
-
-def load_profiles_from_urls(path: Path) -> list[ProfileInput]:
-    if not path.exists():
-        raise FileNotFoundError(f"URL file not found: {path}")
-
-    profiles: list[ProfileInput] = []
-    for raw_line in path.read_text(encoding="utf-8").splitlines():
-        line = raw_line.strip()
-        if not line or line.startswith("#"):
-            continue
-        profiles.append(ProfileInput(profile_name="", url=clean_url(line)))
-    return profiles
-
-
-def load_profile_inputs(input_path: Path, urls_path: Path) -> list[ProfileInput]:
+def load_profile_inputs(input_path: Path) -> list[ProfileInput]:
     profiles = load_profiles_from_csv(input_path)
     if profiles:
         return profiles
-    return load_profiles_from_urls(urls_path)
+    raise FileNotFoundError(f"Input CSV not found or empty: {input_path}")
 
 
 def profile_key(profile_name: str, url: str) -> tuple[str, str]:
@@ -389,18 +373,17 @@ def login_checkpoint(driver: webdriver.Chrome, first_url: str, page_timeout: int
 def main() -> int:
     args = parse_args()
     input_path = Path(args.input)
-    urls_path = Path(args.urls)
     out_path = Path(args.out)
     profile_dir = Path(args.profile_dir)
 
     try:
-        profiles = load_profile_inputs(input_path, urls_path)
+        profiles = load_profile_inputs(input_path)
     except (FileNotFoundError, ValueError) as error:
         print(error)
         return 1
 
     if not profiles:
-        print(f"输入为空：{input_path} 或 {urls_path}")
+        print(f"输入为空：{input_path}")
         return 1
 
     previous_counts = load_previous_recent_counts(out_path)
