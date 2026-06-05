@@ -45,24 +45,63 @@ def write_database(path: Path, fieldnames: list[str], rows: list[dict[str, str]]
         writer.writerows(rows)
 
 
-def update_rows(
-    database_rows: list[dict[str, str]],
-    result_rows: list[dict[str, str]],
-    checked_at: str,
-) -> int:
-    results_by_profile_name = {
+def build_result_index(result_rows: list[dict[str, str]]) -> dict[str, dict[str, str]]:
+    return {
         row["profile_name"]: row
         for row in result_rows
         if row.get("profile_name") and row.get("recent_connections_number")
     }
 
+
+def dedupe_database_rows(
+    database_rows: list[dict[str, str]],
+    result_index: dict[str, dict[str, str]],
+) -> list[dict[str, str]]:
+    deduped_rows: list[dict[str, str]] = []
+    seen_profile_names: set[str] = set()
+
+    for row in database_rows:
+        profile_name = row.get("profile_name", "")
+        if not profile_name or profile_name in seen_profile_names:
+            continue
+        seen_profile_names.add(profile_name)
+        deduped_rows.append(row)
+
+    for profile_name, result_row in result_index.items():
+        if profile_name in seen_profile_names:
+            continue
+        deduped_rows.append(
+            {
+                "profile_name": profile_name,
+                "name": (result_row.get("name") or "").strip(),
+                "linkedin_url": (result_row.get("url") or "").strip(),
+                "last_connections_number": "",
+                "last_checked_at": "",
+            }
+        )
+        seen_profile_names.add(profile_name)
+
+    return deduped_rows
+
+
+def update_rows(
+    database_rows: list[dict[str, str]],
+    result_index: dict[str, dict[str, str]],
+    checked_at: str,
+) -> int:
     updated_count = 0
     for database_row in database_rows:
         profile_name = database_row.get("profile_name", "")
-        result_row = results_by_profile_name.get(profile_name)
+        result_row = result_index.get(profile_name)
         if not result_row:
             continue
 
+        result_name = (result_row.get("name") or "").strip()
+        result_url = (result_row.get("url") or "").strip()
+        if result_name:
+            database_row["name"] = result_name
+        if result_url:
+            database_row["linkedin_url"] = result_url
         database_row["last_connections_number"] = result_row["recent_connections_number"]
         database_row["last_checked_at"] = checked_at
         updated_count += 1
@@ -84,8 +123,10 @@ def main() -> int:
             for row in database_rows:
                 row[column] = ""
 
+    result_index = build_result_index(result_rows)
+    database_rows = dedupe_database_rows(database_rows, result_index)
     checked_at = datetime.now(timezone.utc).isoformat()
-    updated_count = update_rows(database_rows, result_rows, checked_at)
+    updated_count = update_rows(database_rows, result_index, checked_at)
     write_database(database_path, database_fieldnames, database_rows)
 
     print(f"Updated {updated_count} database rows: {database_path}")

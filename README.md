@@ -1,135 +1,243 @@
 # LinkedIn Connections MVP
 
-半自动 Selenium 小工具：打开你提供的 LinkedIn URL，人工登录后，脚本逐页自动读取 `connections` 文本，并按本次输入刷新 CSV，可选导出 Excel。
+Semi-automatic LinkedIn connection capture workflow using Google Sheets as the source of truth.
 
-## 安装
+使用 Google Sheet 作为主数据库的半自动 LinkedIn connections 抓取流程。
+
+## Overview / 概览
+
+This project does three things:
+
+这个项目完成三件事：
+
+1. Read active rows from a Google Sheet and generate `profiles.csv`
+2. Open each LinkedIn profile with Selenium and capture the latest connection count
+3. Write the latest result back to the same Google Sheet
+
+1. 从 Google Sheet 读取有效行并生成 `profiles.csv`
+2. 使用 Selenium 打开每个 LinkedIn profile，抓取最新的 connection 数量
+3. 将最新结果回写到同一张 Google Sheet
+
+## Requirements / 环境要求
+
+- Google Chrome installed locally
+- Python virtual environment in `.venv`
+- A Google service account JSON key file
+- A Google Sheet shared with that service account as `Editor`
+
+- 本机已安装 Google Chrome
+- 项目目录中已有 `.venv` Python 虚拟环境
+- 已下载 Google service account 的 JSON key 文件
+- 已将该 service account 以 `Editor` 权限分享进 Google Sheet
+
+## Install / 安装
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt
+.venv/bin/python3 -m pip install -r requirements.txt
 ```
 
-需要本机已安装 Google Chrome。新版 Selenium 通常会自动管理 ChromeDriver；如果你的环境不支持，可以下载对应版本的 ChromeDriver，然后运行时传 `--driver-path`。
+## Files / 文件说明
 
-## 准备 URL
+- `google_service_account.json`: local Google service account credentials
+- `profiles.csv`: generated runtime input for Selenium
+- `linkedin_connections.csv`: latest capture result in CSV
+- `linkedin_connections.xlsx`: latest capture result in Excel
 
-复制模板生成你自己的输入文件：
+- `google_service_account.json`：本地 Google service account 凭证
+- `profiles.csv`：运行时生成的 Selenium 输入文件
+- `linkedin_connections.csv`：最新抓取结果 CSV
+- `linkedin_connections.xlsx`：最新抓取结果 Excel
 
-```bash
-cp profiles.example.csv profiles.csv
-```
+## Google Sheet Structure / Google Sheet 表结构
 
-然后把 profile name 和 LinkedIn URL 放进 `profiles.csv`：
+Use these headers in `Sheet1`:
 
-```csv
-profile_name,url,original_connections_number
-USUT13A,https://www.linkedin.com/in/eleanor-king-325186403,
-USTMJ09E,https://www.linkedin.com/in/hazel-carter-036578403,
-USNJ06G,https://www.linkedin.com/in/indira-torres-9422283ba/,
-```
-
-`original_connections_number` 可以留空。脚本会自动从 LinkedIn 页面读取人物姓名和最新 connections 数量。
-
-如果 `original_connections_number` 留空，脚本会优先使用上一次输出文件中同一个 `profile_name + url` 的 `recent_connections_number` 作为本次 original。这样每次运行都可以得到“上次数量 vs 本次数量”。
-
-旧格式也可以继续用：把 LinkedIn URL 放进本地 `urls.txt`，一行一个：
+请在 `Sheet1` 中使用以下表头：
 
 ```text
-https://www.linkedin.com/in/some-profile/
-https://www.linkedin.com/in/another-profile/
+profile_name,name,linkedin_url,last_connections_number,last_checked_at,active
 ```
 
-## 运行
+Field meaning:
+
+字段说明：
+
+- `profile_name`: internal profile identifier
+- `name`: expected person name
+- `linkedin_url`: LinkedIn profile URL
+- `last_connections_number`: last successful captured number
+- `last_checked_at`: last successful update timestamp
+- `active`: optional flag to include or skip a row
+
+- `profile_name`：内部 profile 标识
+- `name`：预期的人名
+- `linkedin_url`：LinkedIn profile 链接
+- `last_connections_number`：上一次成功抓取的数量
+- `last_checked_at`：上一次成功更新时间
+- `active`：可选开关，用来决定本次是否参与运行
+
+`active` behavior:
+
+`active` 规则：
+
+- blank / empty = included
+- `TRUE`, `YES`, `1`, `ACTIVE` = included
+- any other value = skipped
+
+- 留空 = 参与运行
+- `TRUE`、`YES`、`1`、`ACTIVE` = 参与运行
+- 其他值 = 跳过
+
+## Main Workflow / 主流程
+
+### 1. Generate `profiles.csv` from Google Sheet
+
+### 1. 从 Google Sheet 生成 `profiles.csv`
 
 ```bash
-python3 linkedin_connections_mvp.py --input profiles.csv --out linkedin_connections.csv --xlsx linkedin_connections.xlsx
+.venv/bin/python3 generate_profiles_from_google_sheet.py \
+  --credentials google_service_account.json \
+  --sheet "https://docs.google.com/spreadsheets/d/1a7qhjnSBmUkO0tcOvw_6UF2NPslzlQwG2KAxx3YA7BA/edit?gid=0#gid=0" \
+  --worksheet "Sheet1" \
+  --out profiles.csv
 ```
 
-运行后：
+Expected output:
 
-1. Chrome 会打开第一个 URL。
-2. 你在浏览器里手动完成 Google/LinkedIn 登录。
-3. 回到终端按回车。
-4. 脚本逐个打开页面，只查找 `connections` 文本。
-5. 找到后写入 CSV；输出文件每次都会刷新，不会叠加旧 run 的记录。
+预期输出：
 
-脚本不会读取 `followers`、推荐账号数字或页面里其他无关数字。
+- sheet row count
+- active row count
+- skipped row count
+- generated `profiles.csv` row count
 
-## 常用参数
+- Sheet 总行数
+- 参与运行的行数
+- 被跳过的行数
+- 生成的 `profiles.csv` 行数
+
+### 2. Run LinkedIn capture
+
+### 2. 运行 LinkedIn 抓取
 
 ```bash
-python3 linkedin_connections_mvp.py --start-index 20
-python3 linkedin_connections_mvp.py --delay 3
-python3 linkedin_connections_mvp.py --profile-dir .selenium-profile
+.venv/bin/python3 linkedin_connections_mvp.py \
+  --input profiles.csv \
+  --out linkedin_connections.csv \
+  --xlsx linkedin_connections.xlsx
 ```
 
-- `--start-index`：从第几个 URL 继续，适合中断后恢复。
-- `--delay`：每个页面之间的等待秒数。
-- `--profile-dir`：Chrome 登录状态保存目录，默认 `.selenium-profile`。
-- `--input`：包含 `profile_name` 和 `url` 的输入 CSV，默认 `profiles.csv`。
-- `--xlsx`：可选 Excel 输出路径，不传就只写 CSV。
+During this step:
 
-## 输出字段
+这一步中：
 
-- `profile_name`
+1. Chrome opens with the local Selenium profile
+2. You log in manually if needed
+3. The script opens each LinkedIn URL
+4. The script captures the visible `connections` number only
+
+1. Chrome 会使用本地 Selenium profile 打开
+2. 如有需要，你手动登录
+3. 脚本逐个打开 LinkedIn URL
+4. 脚本只抓取页面可见的 `connections` 数量
+
+### 3. Write results back to Google Sheet
+
+### 3. 将结果回写到 Google Sheet
+
+```bash
+.venv/bin/python3 update_google_sheet_from_results.py \
+  --credentials google_service_account.json \
+  --sheet "https://docs.google.com/spreadsheets/d/1a7qhjnSBmUkO0tcOvw_6UF2NPslzlQwG2KAxx3YA7BA/edit?gid=0#gid=0" \
+  --worksheet "Sheet1" \
+  --results linkedin_connections.csv
+```
+
+This updates:
+
+这一步会更新：
+
 - `name`
-- `url`
-- `original_connections_number`
-- `recent_connections_number`
+- `linkedin_url`
+- `last_connections_number`
+- `last_checked_at`
 
-## CSV Database Workflow
+## Result Format / 结果格式
 
-试验阶段可以用本地 CSV 当 database。先复制模板：
+`linkedin_connections.csv` and `linkedin_connections.xlsx` use:
+
+`linkedin_connections.csv` 和 `linkedin_connections.xlsx` 使用以下字段：
+
+```text
+profile_name,name,url,original_connections_number,recent_connections_number
+```
+
+Meaning:
+
+字段含义：
+
+- `original_connections_number`: previous value from Google Sheet
+- `recent_connections_number`: newly captured value from LinkedIn
+
+- `original_connections_number`：来自 Google Sheet 的上次记录
+- `recent_connections_number`：本次从 LinkedIn 新抓到的值
+
+## Notes / 注意事项
+
+- `google_service_account.json` is local-only and must not be committed to Git
+- `profiles.csv` is generated each run and should not be treated as the source of truth
+- The Google Sheet is now the primary database
+- Manual LinkedIn login is still required when the browser session expires
+
+- `google_service_account.json` 只用于本地，不要提交到 Git
+- `profiles.csv` 每次运行都会重新生成，不应作为主数据库
+- Google Sheet 现在是主数据库
+- 当浏览器登录状态过期时，仍然需要手动登录 LinkedIn
+
+## Troubleshooting / 常见问题
+
+### Google Sheet API works but rows are skipped
+
+### Google Sheet API 正常，但有些行被跳过
+
+Check:
+
+请检查：
+
+- `linkedin_url` is not empty
+- `active` is blank or allowed
+- `profile_name` is present
+
+- `linkedin_url` 不为空
+- `active` 为留空或允许值
+- `profile_name` 已填写
+
+### Selenium cannot import modules
+
+### Selenium 模块导入失败
+
+Use the virtual environment Python:
+
+请使用虚拟环境里的 Python：
 
 ```bash
-cp profiles_database.example.csv profiles_database.csv
-cp folder_profiles.example.csv folder_profiles.csv
+.venv/bin/python3 linkedin_connections_mvp.py --input profiles.csv --out linkedin_connections.csv --xlsx linkedin_connections.xlsx
 ```
 
-`profiles_database.csv` 是完整资料库：
+### Google Sheet access denied
 
-```csv
-profile_name,name,linkedin_url,last_connections_number,last_checked_at
-USUT13A,Eleanor King,https://www.linkedin.com/in/example-profile-1,,
-```
+### Google Sheet 权限报错
 
-`folder_profiles.csv` 表示这次要跑的 Multilogin folder profile name 列表：
+Check:
 
-```csv
-profile_name
-USUT13A
-USNJ06G
-```
+请检查：
 
-生成本次抓取用的 `profiles.csv`：
+- `Google Sheets API` is enabled
+- `Google Drive API` is enabled
+- the service account `client_email` has `Editor` access to the sheet
 
-```bash
-python3 generate_profiles_from_database.py --database profiles_database.csv --folder folder_profiles.csv --out profiles.csv
-```
-
-运行 LinkedIn 抓取：
-
-```bash
-python3 linkedin_connections_mvp.py --input profiles.csv --out linkedin_connections.csv --xlsx linkedin_connections.xlsx
-```
-
-抓取完成后，把本次结果回写到 database：
-
-```bash
-python3 update_database_from_results.py --database profiles_database.csv --results linkedin_connections.csv
-```
-
-下一次再生成 `profiles.csv` 时，`last_connections_number` 会自动变成 `original_connections_number`。
-
-## Multilogin
-
-当前仓库先预留了 `.env.example`，真实 API token 不要提交到 Git。
-
-```bash
-cp .env.example .env
-```
-
-之后接 Multilogin API 时，脚本会用 folder id 生成 `folder_profiles.csv`，再沿用上面的 CSV database workflow。
-
-请只处理你有权限查看的页面，并遵守 LinkedIn 的使用条款和访问频率限制。
+- 已启用 `Google Sheets API`
+- 已启用 `Google Drive API`
+- service account 的 `client_email` 已被授予该表格的 `Editor` 权限
