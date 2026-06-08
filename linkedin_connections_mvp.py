@@ -91,7 +91,19 @@ def parse_args() -> argparse.Namespace:
         help="Chrome user data directory for keeping login state.",
     )
     parser.add_argument("--start-index", type=int, default=1, help="1-based URL index to start from.")
-    parser.add_argument("--page-timeout", type=int, default=25, help="Page load wait timeout seconds.")
+    parser.add_argument("--page-timeout", type=int, default=12, help="Visible page/body wait timeout seconds.")
+    parser.add_argument(
+        "--connections-timeout",
+        type=int,
+        default=5,
+        help="Wait timeout for visible connections text seconds.",
+    )
+    parser.add_argument(
+        "--page-load-timeout",
+        type=int,
+        default=20,
+        help="Browser page load timeout seconds.",
+    )
     parser.add_argument("--delay", type=float, default=1.5, help="Delay between pages in seconds.")
     parser.add_argument(
         "--driver-path",
@@ -195,7 +207,7 @@ def fill_original_counts(
     return filled_profiles
 
 
-def build_driver(profile_dir: Path, driver_path: str) -> webdriver.Chrome:
+def build_driver(profile_dir: Path, driver_path: str, page_load_timeout: int) -> webdriver.Chrome:
     options = Options()
     options.add_argument(f"--user-data-dir={profile_dir.resolve()}")
     options.add_argument("--profile-directory=Default")
@@ -204,8 +216,11 @@ def build_driver(profile_dir: Path, driver_path: str) -> webdriver.Chrome:
     options.add_experimental_option("useAutomationExtension", False)
 
     if driver_path:
-        return webdriver.Chrome(service=Service(driver_path), options=options)
-    return webdriver.Chrome(options=options)
+        driver = webdriver.Chrome(service=Service(driver_path), options=options)
+    else:
+        driver = webdriver.Chrome(options=options)
+    driver.set_page_load_timeout(page_load_timeout)
+    return driver
 
 
 def wait_for_page(driver: webdriver.Chrome, timeout: int) -> None:
@@ -332,10 +347,19 @@ def capture_one(
     driver: webdriver.Chrome,
     profile: ProfileInput,
     page_timeout: int,
+    connections_timeout: int,
 ) -> CaptureResult:
-    driver.get(profile.url)
+    try:
+        driver.get(profile.url)
+    except Exception as error:
+        try:
+            driver.execute_script("window.stop();")
+        except Exception:
+            pass
+        raise RuntimeError(f"打开页面失败：{error}") from error
+
     wait_for_page(driver, page_timeout)
-    wait_for_profile_text(driver, page_timeout)
+    wait_for_profile_text(driver, connections_timeout)
     time.sleep(0.5)
 
     page_title = driver.title or ""
@@ -395,7 +419,7 @@ def main() -> int:
     print(f"读取到 {len(profiles)} 个 profile，将从第 {start_index} 个开始。")
     print(f"CSV 会按本次输入刷新写入：{out_path}")
 
-    driver = build_driver(profile_dir, args.driver_path)
+    driver = build_driver(profile_dir, args.driver_path, args.page_load_timeout)
     try:
         login_checkpoint(driver, profiles_to_process[0].url, args.page_timeout)
 
@@ -404,7 +428,7 @@ def main() -> int:
             label = f"{profile.profile_name} / " if profile.profile_name else ""
             print(f"[{offset}/{len(profiles)}] 打开：{label}{profile.url}")
             try:
-                result = capture_one(driver, profile, args.page_timeout)
+                result = capture_one(driver, profile, args.page_timeout, args.connections_timeout)
             except KeyboardInterrupt:
                 print("收到退出指令，停止处理。")
                 break
@@ -418,6 +442,20 @@ def main() -> int:
                     recent_connections_number="",
                     status="error",
                     source="selenium_error",
+                    connection_text="",
+                    page_title="",
+                    captured_at=datetime.now(timezone.utc).isoformat(),
+                )
+            except Exception as error:
+                print(f"  页面处理失败：{error}")
+                result = CaptureResult(
+                    profile_name=profile.profile_name,
+                    name="",
+                    url=profile.url,
+                    original_connections_number=profile.original_connections_number,
+                    recent_connections_number="",
+                    status="error",
+                    source="page_error",
                     connection_text="",
                     page_title="",
                     captured_at=datetime.now(timezone.utc).isoformat(),
