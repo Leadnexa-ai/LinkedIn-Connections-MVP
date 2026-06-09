@@ -194,6 +194,71 @@ This updates:
 - `last_connections_number`
 - `last_checked_at`
 
+## Internal API / 内部接口
+
+If your teammate only needs one simple trigger, use the built-in API.
+
+如果你的同事只需要一个简单触发入口，可以直接使用内置 API。
+
+### Start the API / 启动接口
+
+```bash
+.venv/bin/python3 -m pip install -r requirements.txt
+.venv/bin/uvicorn app:app --host 0.0.0.0 --port 8000
+```
+
+Optional `.env` value:
+
+可选 `.env` 配置：
+
+```env
+LOCAL_API_KEY=your_internal_api_key
+```
+
+If `LOCAL_API_KEY` is set, callers must send header:
+
+如果设置了 `LOCAL_API_KEY`，调用时需要带上请求头：
+
+```text
+x-api-key: your_internal_api_key
+```
+
+### Health check / 健康检查
+
+```bash
+curl http://localhost:8000/health
+```
+
+### Run the full workflow / 触发完整流程
+
+```bash
+curl -X POST http://localhost:8000/run \
+  -H "Content-Type: application/json" \
+  -H "x-api-key: your_internal_api_key" \
+  -d '{
+    "start_index": 1,
+    "limit": 10,
+    "page_timeout": 10,
+    "connections_timeout": 3,
+    "page_load_timeout": 15,
+    "delay": 1.5
+  }'
+```
+
+Notes:
+
+说明：
+
+- `start_index` and `limit` are optional
+- if omitted, the API runs the full active dataset
+- the API still uses your local Selenium Chrome session
+- if LinkedIn login expires, you must log in again on that machine
+
+- `start_index` 和 `limit` 都是可选参数
+- 不传时会跑全部 active 数据
+- 这个 API 仍然依赖你本机的 Selenium Chrome 会话
+- 如果 LinkedIn 登录过期，仍需要在那台机器上重新登录
+
 ## Result Format / 结果格式
 
 `linkedin_connections.csv` and `linkedin_connections.xlsx` use:
