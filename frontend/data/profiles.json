@@ -1,0 +1,50 @@
+[
+  {
+    "profile_name": "USUT13A",
+    "name": "Hazel Carter",
+    "linkedin_url": "https://www.linkedin.com/in/hazel-carter-036578403",
+    "last_connections_number": 41,
+    "last_checked_at": "2026-06-09T15:30:00Z",
+    "active": true
+  },
+  {
+    "profile_name": "USNJ06G",
+    "name": "Indira Torres",
+    "linkedin_url": "https://www.linkedin.com/in/indira-torres-9422283ba/",
+    "last_connections_number": 62,
+    "last_checked_at": "2026-06-09T15:30:00Z",
+    "active": true
+  },
+  {
+    "profile_name": "USGA08A",
+    "name": "Eleanor King",
+    "linkedin_url": "https://www.linkedin.com/in/eleanor-king-325186403",
+    "last_connections_number": 47,
+    "last_checked_at": "2026-06-09T15:30:00Z",
+    "active": true
+  },
+  {
+    "profile_name": "USTN111J",
+    "name": "Andrea Vargas",
+    "linkedin_url": "https://www.linkedin.com/in/andrea-vargas-485745413/",
+    "last_connections_number": 28,
+    "last_checked_at": "2026-06-09T15:30:00Z",
+    "active": false
+  },
+  {
+    "profile_name": "USTX102J",
+    "name": "Beatrice Greene",
+    "linkedin_url": "https://www.linkedin.com/in/beatrice-greene-2205aa413/",
+    "last_connections_number": 19,
+    "last_checked_at": "2026-06-09T15:30:00Z",
+    "active": true
+  },
+  {
+    "profile_name": "USTX53J",
+    "name": "Teresa Willis",
+    "linkedin_url": "https://www.linkedin.com/in/teresa-willis-64a9a6410",
+    "last_connections_number": 2,
+    "last_checked_at": "2026-06-09T15:30:00Z",
+    "active": true
+  }
+]

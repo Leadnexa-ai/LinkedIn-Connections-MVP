@@ -285,11 +285,13 @@ Meaning:
 - `profiles.csv` is generated each run and should not be treated as the source of truth
 - Supabase is now the primary database
 - Manual LinkedIn login is still required when the browser session expires
+- `frontend/` contains a local-first dashboard prototype that can be deployed to Vercel
 
 - `.env` 只用于本地，不要提交到 Git
 - `profiles.csv` 每次运行都会重新生成，不应作为主数据库
 - Supabase 现在是主数据库
 - 当浏览器登录状态过期时，仍然需要手动登录 LinkedIn
+- `frontend/` 目录包含一个可本地运行、也可部署到 Vercel 的前端原型
 
 ## Troubleshooting / 常见问题
 

@@ -11,3 +11,7 @@ linkedin_connections.csv
 linkedin_connections.xlsx
 .env
 google_service_account.json
+
+frontend/node_modules/
+frontend/.next/
+frontend/.env.local
