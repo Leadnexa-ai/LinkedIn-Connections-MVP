@@ -110,6 +110,11 @@ def parse_args() -> argparse.Namespace:
         default="",
         help="Optional chromedriver path. Usually not needed with recent Selenium versions.",
     )
+    parser.add_argument(
+        "--skip-login-prompt",
+        action="store_true",
+        help="Skip the terminal login confirmation prompt and continue immediately.",
+    )
     return parser.parse_args()
 
 
@@ -421,7 +426,10 @@ def main() -> int:
 
     driver = build_driver(profile_dir, args.driver_path, args.page_load_timeout)
     try:
-        login_checkpoint(driver, profiles_to_process[0].url, args.page_timeout)
+        if args.skip_login_prompt:
+            print("跳过登录确认，直接开始处理。请确保当前 Chrome profile 仍然保持登录状态。")
+        else:
+            login_checkpoint(driver, profiles_to_process[0].url, args.page_timeout)
 
         for offset, profile in enumerate(profiles_to_process, start=start_index):
             print("")

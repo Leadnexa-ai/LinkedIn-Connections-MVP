@@ -286,12 +286,86 @@ Meaning:
 - Supabase is now the primary database
 - Manual LinkedIn login is still required when the browser session expires
 - `frontend/` contains a local-first dashboard prototype that can be deployed to Vercel
+- `run_daily_workflow.py` provides a cron-friendly daily runner for the full workflow
 
 - `.env` 只用于本地，不要提交到 Git
 - `profiles.csv` 每次运行都会重新生成，不应作为主数据库
 - Supabase 现在是主数据库
 - 当浏览器登录状态过期时，仍然需要手动登录 LinkedIn
 - `frontend/` 目录包含一个可本地运行、也可部署到 Vercel 的前端原型
+- `run_daily_workflow.py` 提供了一个适合 cron 调用的每日执行入口
+
+## Daily Cron Job / 每日自动运行
+
+If you want the whole database to run once per day automatically, use:
+
+如果你想每天自动跑一遍整个数据库，使用：
+
+```bash
+.venv/bin/python3 run_daily_workflow.py
+```
+
+This runner does the same three steps automatically:
+
+这个入口会自动完成同样的三步：
+
+1. generate active `profiles.csv` from Supabase
+2. run Selenium capture with no terminal prompt
+3. write successful results back to Supabase
+
+1. 从 Supabase 生成 active `profiles.csv`
+2. 无终端交互地运行 Selenium 抓取
+3. 将成功结果回写到 Supabase
+
+Each run creates:
+
+每次运行会生成：
+
+- `run_artifacts/<RUN_ID>/profiles.generated.csv`
+- `run_artifacts/<RUN_ID>/profiles.csv`
+- `run_artifacts/<RUN_ID>/linkedin_connections.csv`
+- `run_artifacts/<RUN_ID>/linkedin_connections.xlsx`
+- `run_artifacts/<RUN_ID>/summary.json`
+
+### Example crontab / crontab 示例
+
+Open your crontab:
+
+打开 crontab：
+
+```bash
+crontab -e
+```
+
+Run every day at 9:00 AM:
+
+每天早上 9 点运行：
+
+```cron
+0 9 * * * cd /Users/valencia/Documents/New\ project\ 5 && /Users/valencia/Documents/New\ project\ 5/.venv/bin/python3 run_daily_workflow.py >> /Users/valencia/Documents/New\ project\ 5/run_artifacts/cron.log 2>&1
+```
+
+### Important notes / 重要说明
+
+- The Chrome profile in `.selenium-profile` must already be logged into LinkedIn
+- If the LinkedIn session expires, the scheduled run will fail until you log in again manually
+- `cron` runs with a minimal environment, so always use absolute paths
+- A lock file prevents overlapping runs
+
+- `.selenium-profile` 中的 Chrome profile 必须已经处于 LinkedIn 登录状态
+- 如果 LinkedIn 登录过期，定时任务会失败，直到你手动重新登录
+- `cron` 的环境变量很少，所以请始终使用绝对路径
+- 脚本内置了锁，避免重复重叠运行
+
+### macOS note / macOS 说明
+
+Because this workflow launches a real Chrome browser through Selenium, `cron` on macOS can be less reliable than `launchd`, especially if the machine is asleep or no GUI session is active.
+
+由于这条流程需要 Selenium 启动真实 Chrome 浏览器，在 macOS 上 `cron` 通常不如 `launchd` 稳定，尤其是在电脑睡眠或没有图形登录会话时。
+
+If you want, this repo can also be switched to a `launchd` `.plist` scheduler later.
+
+如果你愿意，后面也可以把它改成 `launchd` 的 `.plist` 定时方案。
 
 ## Troubleshooting / 常见问题
 

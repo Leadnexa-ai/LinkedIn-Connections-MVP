@@ -9,6 +9,8 @@ folder_profiles.csv
 urls.txt
 linkedin_connections.csv
 linkedin_connections.xlsx
+run_artifacts/
+.daily_workflow.lock
 .env
 google_service_account.json
 
